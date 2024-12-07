@@ -13,108 +13,105 @@ $manifestTitle = $Manifest->{'name'} ?? '';
 $manifestVersion = $Manifest->{'version'} ?? '';
 ?>
 
-<!DOCTYPE html>
 <?php
-if (isset($_SESSION['MM_Usuario'])) {
-    echo '<html lang="pt-BR">'; // Fix versão antiga MK-AUTH
-} else {
-    echo '<html lang="pt-BR" class="has-navbar-fixed-top">';
+// Include necessary files
+require_once('config.php');
+
+// Search and filter logic
+$searchCondition = '';
+$searchTerm = '';
+if (!empty($_GET['search'])) {
+    $searchTerm = mysqli_real_escape_string($link, $_GET['search']);
+    $searchCondition = " AND (c.login LIKE '%$searchTerm%' OR c.nome LIKE '%$searchTerm%')";
+}
+
+// Fetch observation clients
+$query = "SELECT c.uuid_cliente, c.nome, c.rem_obs, c.tit_vencidos
+          FROM sis_cliente c
+          WHERE c.cli_ativado = 's' AND c.observacao = 'sim'"
+    . $searchCondition .
+    " ORDER BY c.rem_obs DESC";
+
+$result = mysqli_query($link, $query);
+$observationClients = [];
+$totalObservationClients = 0;
+
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $observationClients[] = $row;
+        $totalObservationClients++;
+    }
 }
 ?>
-<html lang="pt-BR">
+
+
+<!DOCTYPE html>
+<html lang="pt-BR" class="has-navbar-fixed-top" style="margin-top: 20px;">
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
     <title>MK - AUTH :: <?= htmlspecialchars($manifestTitle . " - V " . $manifestVersion); ?></title>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="../../estilos/mk-auth.css">
+	
+	<!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    
+	
     <link rel="stylesheet" href="../../estilos/font-awesome.css">
 	<link href="../../estilos/bi-icons.css" rel="stylesheet" type="text/css" />
     <script src="../../scripts/jquery.js"></script>
     <script src="../../scripts/mk-auth.js"></script>
+	<link rel="stylesheet" href="../../estilos/mk-auth.css">
     <style>
-        /* Estilos CSS personalizados */
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #ffffff;
-            margin: 0;
-            padding: 0;
-            color: #333;
         }
-
-        form {
-            background-color:#e4e4e4;
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        input[type="text"],
-        input[type="submit"],
-        button {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
             margin-top: 20px;
         }
-
-        th,
-        td {
-            padding: 2px 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
+        .table > thead {
             background-color: #0d6cea;
             color: white;
+        }
+        .table > tbody > tr:hover {
+            background-color: #f1f3f5;
+            transition: background-color 0.3s ease;
+        }
+        .client-badge {
+            font-size: 1rem;
             font-weight: bold;
-            text-align: center;
         }
+        .search-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+		/* Estilo inicial do link */
+        .client-link {
+        color: #063572; /* Azul padrão */
+        font-weight: bold; /* Negrito */
+        text-decoration: none; /* Remove sublinhado */
+        transition: color 0.3s ease; /* Transição suave para cor */
+        }   
 
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
+        /* Estilo ao passar o mouse */
+       .client-link:hover {
+        color: #df830a; /* Azul mais escuro no hover */
+        text-decoration: underline; /* Adiciona sublinhado no hover */
         }
-
-        .client-count {
-            color: #4caf50;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-
-        .error-message {
-            color: red;
-            margin-top: 20px;
-        }
-		
-	    /* Estilização dos ícones */
-        .fas {
-        margin-right: 5px; /* Adiciona um espaço entre o ícone e o texto */
-        }
-
-        /* Efeito de transição para o campo de busca */
-        #search {
-        width: 100%; 
-        padding: 10px; 
-        margin-bottom: 10px; 
-        border: 1px solid #ccc; 
-        transition: border-color 0.3s ease; /* Adiciona a transição */
-        }
-
-        /* Estilo da borda do campo de busca quando focado */
-        #search:focus {
-        border-color: #007bff; /* Cor da borda quando o campo está focado */
-        outline: none; /* Remove a borda de foco padrão */
+		h4.mb-0 {
+        font-weight: bold;
         }
     </style>
 
@@ -210,7 +207,6 @@ function getDateFromTableCell(cellContent) {
 
 </script>
 
-
 </head>
 
 <body>
@@ -227,111 +223,102 @@ function getDateFromTableCell(cellContent) {
 
     <?php include('config.php'); ?>
 
-    <?php
-    if ($acesso_permitido) {
-        // Formulário Atualizado com Funcionalidade de Busca
-    ?>
-        <form id="searchForm" method="GET">
-<div style="display: flex; justify-content: center; align-items: flex-end; margin-bottom: 10px;">
-<div style="width: 60%; margin-right: 10px;">
-    <form id="searchForm" method="GET" style="display: flex;">
-        <label for="search" style="font-weight: bold; margin-bottom: 5px;">Buscar Cliente:</label>
-        <input type="text" id="search" name="search" placeholder="Digite o Nome do Cliente" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; cursor: text;"> <!-- Adicionando cursor: text; -->
+        <?php if ($acesso_permitido): ?>
+<!-- Search Container -->
+<div class="search-container">
+    <form id="searchForm" method="GET" class="row g-3">
+        <div class="col-md-6">
+            <label for="search" class="form-label">Buscar Cliente</label>
+            <div class="input-group">
+                <!-- Input de busca -->
+                <input type="text" 
+                       class="form-control" 
+                       id="search" 
+                       name="search" 
+                       placeholder="Digite o Nome do Cliente" 
+                       value="<?= htmlspecialchars($searchTerm); ?>">
+                
+                <!-- Botão de buscar -->
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                
+                <!-- Botão de limpar -->
+                <button class="btn btn-danger" type="button" onclick="clearSearch()">
+                    <i class="fas fa-times"></i> Limpar
+                </button>
+                
+                <!-- Botão de ordenar -->
+                <button type="button" 
+                        onclick="sortTable(1)" 
+                        class="btn btn-secondary" 
+                        style="padding: 0.375rem 0.75rem; font-weight: bold;">
+                    <i class="fas fa-sort"></i> Ordenar
+                </button>
+            </div>
+        </div>
     </form>
 </div>
-<div style="display: flex; align-items: flex-end;">
-    <button type="submit" form="searchForm" id="searchButton" class="btn" style="padding: 10px 15px; border: 1px solid #4caf50; background-color: #4caf50; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; margin-right: 10px;"><i class="fas fa-search"></i> Buscar</button>
-    <button type="button" onclick="clearSearch()" class="clear-button" style="padding: 10px 15px; border: 1px solid #e74c3c; background-color: #e74c3c; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; margin-right: 10px;"><i class="fas fa-times"></i> Limpar</button>
-    <button type="button" onclick="sortTable(1)" class="clear-button sort-button-1" style="padding: 1.5px 15px; border: 1px solid #4336f4; background-color: #4336f4; color: white; font-weight: bold; cursor: pointer; border-radius: 5px;"><i class="fas fa-sort"></i> Ordenar</button>
-</div>
-</div>
-        </form>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                    <th style="color: white;">Nome do Cliente</th>
-                    <th style="color: white;">Data remover</th>
-                    <th style="color: white;">Boletos Vencidos</th> <!-- Adicionando a coluna Boletos Vencidos -->
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    // Adicione a condição de busca, se houver
-                    $searchCondition = '';
-                    if (!empty($_GET['search'])) {
-                        $search = mysqli_real_escape_string($link, $_GET['search']);
-                        $searchCondition = " AND (c.login LIKE '%$search%' OR c.nome LIKE '%$search%')";
-                    }
 
-                    // Consulta SQL para obter os clientes em observação com data de remoção
-                    $query = "SELECT c.uuid_cliente, c.nome, c.rem_obs, c.tit_vencidos
-                              FROM sis_cliente c
-                              WHERE c.cli_ativado = 's' AND c.observacao = 'sim'"
-                        . $searchCondition .
-                        " ORDER BY c.rem_obs DESC"; // Ordenar por data de remoção em ordem decrescente
+            <!-- Clients Table Container -->
+<div class="table-container">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+        <h4 class="mb-0 fw-bold text-primary">Clientes em Observação</h4>
+        <span class="badge bg-secondary text-white fs-6 px-3 py-2">
+            Total: <?= $totalObservationClients; ?>
+        </span>
+    </div>
 
-                    // Execute a consulta
-                    $result = mysqli_query($link, $query);
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome do Cliente</th>
+                            <th>Data para Remover</th>
+                            <th>Boletos Vencidos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($observationClients)): ?>
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">
+                                    Nenhum cliente em observação encontrado.
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($observationClients as $client): ?>
+                                <tr>
+<td>
+    <a href="../../cliente_det.hhvm?uuid=<?= $client['uuid_cliente']; ?>" 
+       target="_blank" 
+       class="client-link">
+        <i class="fas fa-user me-2"></i>
+        <?= htmlspecialchars($client['nome']); ?>
+    </a>
+</td>
+<td style="color: #2f4f4f; font-weight: bold;">
+    <i class="fas fa-calendar me-2"></i>
+    <?= $client['rem_obs'] ? date('d/m/Y', strtotime($client['rem_obs'])) : 'N/A'; ?>
+</td>
 
-                    // Verifique se a consulta foi bem-sucedida
-                    if ($result) {
-                        // Inicialize a variável de contagem
-                        $total_observacao_ = 0;
-						
-                        $rowNumber = 0;
-                        while ($row = mysqli_fetch_assoc($result)) {
-                            
-							// Incrementar a contagem em cada iteração
-                            $total_observacao_++;
+<td style="color: #e63946; font-weight: bold;">
+    <i class="fas fa-file-invoice-dollar me-2"></i>
+    <?= htmlspecialchars($client['tit_vencidos']); ?>
+</td>
 
-                            // Adiciona a classe 'nome_cliente' e 'highlight' (para linhas ímpares) alternadamente
-                            $rowNumber++;
-                            $nomeClienteClass = ($rowNumber % 2 == 0) ? 'nome_cliente' : 'nome_cliente highlight';
-
-                            // Adiciona o link apenas no campo de nome do cliente
-                            echo "<tr class='$nomeClienteClass'>";
-							
-                            // Nome do Cliente
-                            echo "<td style='position: relative; text-align: center; font-weight: bold;'>"; // Adicionando o estilo 'font-weight: bold;'
-                            echo "<img src='img/icon_ativo.png' alt='Ícone de Nome' width='25' height='25' style='position: absolute; left: 0; top: 50%; transform: translateY(-50%);'> ";
-                            echo "<a href='../../cliente_det.hhvm?uuid=" . $row['uuid_cliente'] . "' target='_blank'>" . $row['nome'] . "</a>";
-                            echo "</td>";
-							
-                            // Data remover  
-                            echo "<td style='border: 1px solid #ddd; padding: 1px; text-align: center; color: #e61515; font-weight: bold; position: relative; vertical-align: middle;'>"; // Adicionando o estilo 'vertical-align: middle;'
-                            echo "<img src='img/calendario.png' alt='Ícone de Valor' width='20' height='20' style='position: absolute; left: 0; top: 50%; transform: translateY(-50%);'> ";
-                            echo ($row['rem_obs'] ? date('d/m/Y', strtotime($row['rem_obs'])) : 'N/A');
-                            echo "</td>";
-                         
-							// Titulos Vencidos
-                            echo "<td style='border: 1px solid #ddd; padding: 1px; text-align: center; color: #e61515; font-weight: bold; position: relative;'>";
-                            echo "<img src='img/icon_boleto.png' alt='Ícone de Valor' width='20' height='20' style='position: absolute; left: 0; top: 50%; transform: translateY(-50%);'> ";
-                            echo $row['tit_vencidos'];
-							echo "</tr>";
-							echo "</td>";
-                        }
-                    } else {
-                        // Se a consulta falhar, exiba uma mensagem de erro
-                        echo "<tr><td colspan='3'>Erro na consulta: " . mysqli_error($link) . "</td></tr>";
-                    }
-                    ?>
-                </tbody>
-				
-				<!--contador-->
-				<div class="client-count-container" style="text-align: center;">
-                <p class="client-count blue">Clientes em Observação: <?php echo $total_observacao_; ?></p>
-                </div>
-
-            </table>
-        </div>
-    <?php
-    } else {
-        echo "Acesso não permitido!";
-    }
-    ?>
-
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="alert alert-danger" role="alert">
+                Acesso não permitido!
+            </div>
+        <?php endif; ?>
+    </div>
     <?php include('../../baixo.php'); ?>
 
     <script src="../../menu.js.php"></script>
